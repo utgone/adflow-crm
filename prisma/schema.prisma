@@ -1,0 +1,183 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model brief {
+  brief_id         Int       @id @default(autoincrement())
+  client_id        Int
+  category         String    @db.VarChar(100)
+  requirement_desc String    @db.VarChar(500)
+  budget           Decimal   @db.Decimal(12, 2)
+  created_date     DateTime  @default(dbgenerated("CURRENT_DATE")) @db.Date
+  status           String    @default("нове") @db.VarChar(30)
+  client           client    @relation(fields: [client_id], references: [client_id], map: "fk_brief_client")
+  project          project[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model campaign {
+  campaign_id     Int         @id @default(autoincrement())
+  project_id      Int
+  channel         String      @db.VarChar(50)
+  launch_date     DateTime    @db.Date
+  stop_date       DateTime?   @db.Date
+  budget          Decimal     @db.Decimal(12, 2)
+  campaign_status String      @default("заплановано") @db.VarChar(40)
+  project         project     @relation(fields: [project_id], references: [project_id], map: "fk_campaign_project")
+  statistic       statistic[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model client {
+  client_id    Int       @id @default(autoincrement())
+  full_name    String    @db.VarChar(100)
+  company_name String?   @db.VarChar(100)
+  phone        String    @unique(map: "uq_client_phone") @db.VarChar(30)
+  email        String    @unique(map: "uq_client_email") @db.VarChar(100)
+  password     String    @db.VarChar(100)
+  status       String    @default("активний") @db.VarChar(30)
+  brief        brief[]
+  invoice      invoice[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model employee {
+  employee_id         Int                   @id @default(autoincrement())
+  full_name           String                @db.VarChar(100)
+  position_id         Int
+  login               String                @unique(map: "uq_employee_login") @db.VarChar(50)
+  password            String                @db.VarChar(100)
+  contacts            String                @unique(map: "uq_employee_contacts") @db.VarChar(30)
+  birth_date          DateTime              @db.Date
+  status              String                @default("працює") @db.VarChar(30)
+  position            position              @relation(fields: [position_id], references: [position_id], map: "fk_employee_position")
+  task                task[]
+  task_assignment_log task_assignment_log[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model invoice {
+  invoice_id     Int       @id @default(autoincrement())
+  client_id      Int
+  project_id     Int
+  total_amount   Decimal   @db.Decimal(12, 2)
+  issue_date     DateTime  @default(dbgenerated("CURRENT_DATE")) @db.Date
+  due_date       DateTime  @db.Date
+  invoice_status String    @default("виставлено") @db.VarChar(50)
+  client         client    @relation(fields: [client_id], references: [client_id], map: "fk_invoice_client")
+  project        project   @relation(fields: [project_id], references: [project_id], map: "fk_invoice_project")
+  payment        payment[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model material {
+  material_id     Int      @id @default(autoincrement())
+  task_id         Int
+  date            DateTime @default(dbgenerated("CURRENT_DATE")) @db.Date
+  file_link       String   @db.VarChar(300)
+  file_format     String   @db.VarChar(50)
+  upload_date     DateTime @default(dbgenerated("CURRENT_DATE")) @db.Date
+  material_status String   @default("завантажено") @db.VarChar(50)
+  client_comment  String?  @db.VarChar(500)
+  task            task     @relation(fields: [task_id], references: [task_id], onDelete: Cascade, map: "fk_material_task")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model payment {
+  payment_id     Int      @id @default(autoincrement())
+  invoice_id     Int
+  amount_paid    Decimal  @db.Decimal(12, 2)
+  payment_date   DateTime @default(dbgenerated("CURRENT_DATE")) @db.Date
+  payment_method String   @db.VarChar(50)
+  invoice        invoice  @relation(fields: [invoice_id], references: [invoice_id], map: "fk_payment_invoice")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model position {
+  position_id   Int        @id @default(autoincrement())
+  position_name String     @unique(map: "uq_position_name") @db.VarChar(100)
+  description   String?    @db.VarChar(300)
+  employee      employee[]
+  service       service[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model project {
+  project_id          Int                   @id @default(autoincrement())
+  brief_id            Int
+  project_name        String                @db.VarChar(150)
+  start_date          DateTime              @default(dbgenerated("CURRENT_DATE")) @db.Date
+  end_date            DateTime?             @db.Date
+  status              String                @default("новий") @db.VarChar(30)
+  campaign            campaign[]
+  invoice             invoice[]
+  brief               brief                 @relation(fields: [brief_id], references: [brief_id], map: "fk_project_brief")
+  task                task[]
+  task_assignment_log task_assignment_log[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model service {
+  service_id          Int                   @id @default(autoincrement())
+  service_name        String                @unique(map: "uq_service_name") @db.VarChar(100)
+  description         String                @db.VarChar(300)
+  base_price          Decimal               @db.Decimal(12, 2)
+  unit                String                @db.VarChar(50)
+  status              String                @default("актуальна") @db.VarChar(30)
+  position_id         Int
+  position            position              @relation(fields: [position_id], references: [position_id], map: "fk_service_position")
+  task                task[]
+  task_assignment_log task_assignment_log[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model statistic {
+  statistic_id Int      @id @default(autoincrement())
+  campaign_id  Int
+  record_date  DateTime @default(dbgenerated("CURRENT_DATE")) @db.Date
+  impressions  Int      @default(0)
+  clicks       Int      @default(0)
+  spent_amount Decimal  @default(0) @db.Decimal(12, 2)
+  campaign     campaign @relation(fields: [campaign_id], references: [campaign_id], map: "fk_statistic_campaign")
+
+  @@unique([campaign_id, record_date], map: "uq_statistic_campaign_date")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model task {
+  task_id             Int                   @id @default(autoincrement())
+  project_id          Int
+  employee_id         Int
+  service_id          Int
+  description         String                @db.VarChar(500)
+  deadline            DateTime              @db.Date
+  task_status         String                @default("нова") @db.VarChar(50)
+  manager_comment     String?               @db.VarChar(500)
+  date                DateTime              @default(dbgenerated("CURRENT_DATE")) @db.Date
+  material            material[]
+  employee            employee              @relation(fields: [employee_id], references: [employee_id], map: "fk_task_employee")
+  project             project               @relation(fields: [project_id], references: [project_id], map: "fk_task_project")
+  service             service               @relation(fields: [service_id], references: [service_id], map: "fk_task_service")
+  task_assignment_log task_assignment_log[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model task_assignment_log {
+  assignment_id   Int      @id @default(autoincrement())
+  task_id         Int
+  project_id      Int
+  employee_id     Int
+  service_id      Int
+  assigned_at     DateTime @default(now()) @db.Timestamp(6)
+  assignment_note String?  @db.VarChar(500)
+  employee        employee @relation(fields: [employee_id], references: [employee_id], map: "fk_assignment_employee")
+  project         project  @relation(fields: [project_id], references: [project_id], map: "fk_assignment_project")
+  service         service  @relation(fields: [service_id], references: [service_id], map: "fk_assignment_service")
+  task            task     @relation(fields: [task_id], references: [task_id], onDelete: Cascade, map: "fk_assignment_task")
+}

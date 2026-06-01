@@ -350,7 +350,7 @@
 .heroTitle {
   max-width: 720px;
   margin: 0;
-  font-size: clamp(44px, 5.7vw, 82px);
+  font-size: clamp(44px, 5.7vw, 62px);
   line-height: 0.98;
   letter-spacing: -0.065em;
   color: var(--text);
@@ -1726,5 +1726,243 @@
 
   :global([data-parallax]) {
     transform: none !important;
+  }
+}
+.userActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.userMiniCard {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px 6px 6px;
+  border: 1px solid rgba(255, 122, 24, 0.2);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: 0 10px 28px rgba(120, 70, 30, 0.08);
+  backdrop-filter: blur(12px);
+}
+
+.userAvatar {
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: 10px;
+  background: var(--gradient);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.userText {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+}
+
+.userText strong {
+  max-width: 140px;
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.userText span {
+  margin-top: 3px;
+  color: var(--faint);
+  font-size: 11px;
+  font-weight: 400;
+}
+
+.cabinetButton {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 0 14px;
+  border-radius: 10px;
+  background: var(--gradient);
+  color: #fff;
+  font-size: 13.5px;
+  font-weight: 600;
+  box-shadow: var(--glow);
+  transition:
+    transform 0.2s var(--ease),
+    box-shadow 0.2s var(--ease),
+    filter 0.2s var(--ease);
+}
+
+.cabinetButton:hover {
+  color: #fff;
+  transform: translateY(-1px);
+  filter: brightness(1.03);
+}
+
+.cabinetButton :global(.material-symbols-rounded) {
+  color: #fff;
+  font-size: 18px;
+}
+
+.logoutButton {
+  width: 44px;
+  height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(234, 88, 12, 0.18);
+  border-radius: 10px;
+  background: rgba(255, 241, 226, 0.9);
+  color: var(--brand-strong);
+  cursor: pointer;
+  transition:
+    transform 0.2s var(--ease),
+    background 0.2s var(--ease),
+    border-color 0.2s var(--ease);
+}
+
+.logoutButton:hover {
+  transform: translateY(-1px);
+  background: #ffe2c4;
+  border-color: rgba(234, 88, 12, 0.28);
+}
+
+.logoutButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.logoutButton :global(.material-symbols-rounded) {
+  font-size: 20px;
+}
+
+.cookieBanner {
+  position: fixed;
+  left: 24px;
+  bottom: 24px;
+  z-index: 80;
+  width: min(520px, calc(100vw - 48px));
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  padding: 14px;
+  border: 1px solid rgba(255, 122, 24, 0.2);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 18px 48px rgba(120, 70, 30, 0.16);
+  backdrop-filter: blur(16px);
+}
+
+.cookieIcon {
+  width: 42px;
+  height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: var(--color-primary-soft, #fff1e2);
+  color: var(--brand-strong, #c95b06);
+}
+
+.cookieIcon :global(.material-symbols-rounded) {
+  font-size: 22px;
+}
+
+.cookieText {
+  min-width: 0;
+}
+
+.cookieText strong {
+  display: block;
+  color: var(--ink);
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.cookieText p {
+  margin: 3px 0 0;
+  color: var(--faint);
+  font-size: 12.5px;
+  font-weight: 400;
+  line-height: 1.45;
+}
+
+.cookieButton {
+  min-height: 38px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--gradient);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cookieButton:hover {
+  filter: brightness(1.03);
+}
+
+@media (max-width: 860px) {
+  .userActions {
+    width: 100%;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+  }
+
+  .userMiniCard {
+    flex: 1 1 auto;
+    min-width: 180px;
+  }
+
+  .userText strong {
+    max-width: 180px;
+  }
+}
+
+@media (max-width: 620px) {
+  .cookieBanner {
+    left: 14px;
+    right: 14px;
+    bottom: 14px;
+    width: auto;
+    grid-template-columns: 38px minmax(0, 1fr);
+  }
+
+  .cookieButton {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+}
+
+@media (max-width: 520px) {
+  .userActions {
+    justify-content: stretch;
+  }
+
+  .userMiniCard {
+    width: 100%;
+  }
+
+  .cabinetButton {
+    flex: 1;
+  }
+
+  .logoutButton {
+    flex-shrink: 0;
   }
 }

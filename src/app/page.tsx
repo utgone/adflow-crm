@@ -1,6 +1,11 @@
 import Link from "next/link";
 import LandingAnimations from "@/components/landing/LandingAnimations";
+import { getCurrentUser } from "@/lib/auth";
+import CookieBanner from "./CookieBanner";
+import LandingUserActions from "./LandingUserActions";
 import styles from "./page.module.css";
+
+export const dynamic = "force-dynamic";
 
 const heroStats = [
   {
@@ -9,7 +14,7 @@ const heroStats = [
     icon: "database",
   },
   {
-    value: "8+",
+    value: "10+",
     label: "CRM-модулів",
     icon: "dashboard_customize",
   },
@@ -115,7 +120,10 @@ const previewRows = [
   },
 ];
 
-export default function HomePage() {
+export default async function HomePage() {
+  const currentUser = await getCurrentUser();
+  const isAuthenticated = Boolean(currentUser);
+
   return (
     <main className={styles.page}>
       <LandingAnimations />
@@ -128,6 +136,7 @@ export default function HomePage() {
           <span className={styles.logoIcon}>
             <span className="material-symbols-rounded">hub</span>
           </span>
+
           <span className={styles.logoText}>
             <strong>AdFlow</strong>
             <small>CRM</small>
@@ -142,14 +151,29 @@ export default function HomePage() {
         </nav>
 
         <div className={styles.authActions}>
-          <Link href="/login" className={styles.loginButton} data-magnetic>
-            Увійти
-          </Link>
+          {currentUser ? (
+            <LandingUserActions
+              user={{
+                name: currentUser.name,
+                role: currentUser.role,
+              }}
+            />
+          ) : (
+            <>
+              <Link href="/login" className={styles.loginButton} data-magnetic>
+                Увійти
+              </Link>
 
-          <Link href="/register" className={styles.registerButton} data-magnetic>
-            <span>Реєстрація</span>
-            <span className="material-symbols-rounded">arrow_forward</span>
-          </Link>
+              <Link
+                href="/register"
+                className={styles.registerButton}
+                data-magnetic
+              >
+                <span>Реєстрація</span>
+                <span className="material-symbols-rounded">arrow_forward</span>
+              </Link>
+            </>
+          )}
         </div>
       </header>
 
@@ -171,15 +195,36 @@ export default function HomePage() {
           </p>
 
           <div className={styles.heroActions}>
-            <Link href="/login" className={styles.primaryButton} data-magnetic>
-              <span>Увійти до CRM</span>
-              <span className="material-symbols-rounded">login</span>
-            </Link>
+            {isAuthenticated ? (
+              <Link
+                href="/dashboard"
+                className={styles.primaryButton}
+                data-magnetic
+              >
+                <span>Перейти до кабінету</span>
+                <span className="material-symbols-rounded">arrow_forward</span>
+              </Link>
+            ) : (
+              <>
+                <Link
+                  href="/login"
+                  className={styles.primaryButton}
+                  data-magnetic
+                >
+                  <span>Увійти до CRM</span>
+                  <span className="material-symbols-rounded">login</span>
+                </Link>
 
-            <Link href="/register" className={styles.secondaryButton} data-magnetic>
-              <span className="material-symbols-rounded">person_add</span>
-              <span>Створити акаунт</span>
-            </Link>
+                <Link
+                  href="/register"
+                  className={styles.secondaryButton}
+                  data-magnetic
+                >
+                  <span className="material-symbols-rounded">person_add</span>
+                  <span>Створити акаунт</span>
+                </Link>
+              </>
+            )}
           </div>
 
           <div className={styles.securityNote}>
@@ -195,6 +240,7 @@ export default function HomePage() {
                 <span className={styles.heroStatIcon}>
                   <span className="material-symbols-rounded">{item.icon}</span>
                 </span>
+
                 <strong>{item.value}</strong>
                 <span>{item.label}</span>
               </div>
@@ -223,6 +269,7 @@ export default function HomePage() {
                 <span>Панель агенції</span>
                 <strong>Огляд активності</strong>
               </div>
+
               <span className={styles.liveBadge}>Онлайн</span>
             </div>
 
@@ -232,11 +279,13 @@ export default function HomePage() {
                 <strong>42</strong>
                 <p>кампанії</p>
               </div>
+
               <div>
                 <span className="material-symbols-rounded">payments</span>
                 <strong>₴186K</strong>
                 <p>оплати</p>
               </div>
+
               <div>
                 <span className="material-symbols-rounded">task_alt</span>
                 <strong>73</strong>
@@ -249,6 +298,7 @@ export default function HomePage() {
                 <span>Виконання задач</span>
                 <strong>86%</strong>
               </div>
+
               <div className={styles.progressBar}>
                 <span />
               </div>
@@ -260,10 +310,12 @@ export default function HomePage() {
                   <span className={styles.previewRowIcon}>
                     <span className="material-symbols-rounded">{row.icon}</span>
                   </span>
+
                   <div>
                     <strong>{row.title}</strong>
                     <p>{row.meta}</p>
                   </div>
+
                   <b>{row.value}</b>
                 </div>
               ))}
@@ -275,7 +327,9 @@ export default function HomePage() {
       <section className={styles.featuresSection} id="features">
         <div className={styles.sectionHeader} data-reveal>
           <span className={styles.sectionEyebrow}>Можливості</span>
+
           <h2>Не просто лендинг, а логічний інтерфейс CRM-системи</h2>
+
           <p>
             Головна сторінка працює як презентаційна частина продукту, а доступ
             до реальної CRM-панелі відбувається через вхід або реєстрацію.
@@ -284,12 +338,18 @@ export default function HomePage() {
 
         <div className={styles.featureGrid}>
           {features.map((feature) => (
-            <article className={styles.featureCard} key={feature.title} data-reveal>
+            <article
+              className={styles.featureCard}
+              key={feature.title}
+              data-reveal
+            >
               <div className={styles.hugeIcon}>
                 <span className="material-symbols-rounded">{feature.icon}</span>
               </div>
+
               <h3>{feature.title}</h3>
               <p>{feature.text}</p>
+
               <span className={styles.cardGlow} aria-hidden="true" />
             </article>
           ))}
@@ -300,7 +360,9 @@ export default function HomePage() {
         <div className={styles.workflowPanel}>
           <div className={styles.sectionHeader} data-reveal>
             <span className={styles.sectionEyebrow}>Сценарій роботи</span>
+
             <h2>Від заявки клієнта до фінансового контролю</h2>
+
             <p>
               Структура системи відповідає предметній області рекламної агенції
               та демонструє реальні бізнес-процеси.
@@ -309,11 +371,17 @@ export default function HomePage() {
 
           <div className={styles.workflowGrid}>
             {workflow.map((item) => (
-              <article className={styles.workflowCard} key={item.step} data-reveal>
+              <article
+                className={styles.workflowCard}
+                key={item.step}
+                data-reveal
+              >
                 <span className={styles.workflowStep}>{item.step}</span>
+
                 <div className={styles.workflowIcon}>
                   <span className="material-symbols-rounded">{item.icon}</span>
                 </div>
+
                 <h3>{item.title}</h3>
                 <p>{item.text}</p>
               </article>
@@ -325,9 +393,11 @@ export default function HomePage() {
       <section className={styles.modulesSection} id="modules">
         <div className={styles.sectionHeader} data-reveal>
           <span className={styles.sectionEyebrow}>Модулі системи</span>
+
           <h2>Блочна структура під реальні таблиці бази даних</h2>
+
           <p>
-            Кожен модуль інтерфейсу відповідає окремій сутності CRM та може бути
+            Кожен модуль інтерфейсу відповідає окремій сутності CRM та
             підключений до PostgreSQL через Prisma.
           </p>
         </div>
@@ -338,6 +408,7 @@ export default function HomePage() {
               <span className={styles.moduleIcon}>
                 <span className="material-symbols-rounded">{module.icon}</span>
               </span>
+
               <div>
                 <strong>{module.label}</strong>
                 <span>{module.entity}</span>
@@ -351,11 +422,13 @@ export default function HomePage() {
         <div className={styles.databasePanel} data-reveal>
           <div className={styles.databaseContent}>
             <span className={styles.sectionEyebrow}>PostgreSQL-ready</span>
-            <h2>Інтерфейс підготовлено до підключення реальної бази</h2>
+
+            <h2>Інтерфейс підключено до реальної бази даних</h2>
+
             <p>
-              У проєкті буде використано PostgreSQL, вже створені таблиці,
-              зовнішні ключі, перевірки, унікальні обмеження та зв’язки між
-              сутностями рекламної агенції.
+              У проєкті використовується PostgreSQL: створені таблиці, зовнішні
+              ключі, перевірки, унікальні обмеження та зв’язки між сутностями
+              рекламної агенції.
             </p>
 
             <div className={styles.databaseTags}>
@@ -373,16 +446,21 @@ export default function HomePage() {
               <span className="material-symbols-rounded">person</span>
               client
             </div>
+
             <div className={styles.schemaLine} />
+
             <div className={styles.schemaNode}>
               <span className="material-symbols-rounded">article</span>
               brief
             </div>
+
             <div className={styles.schemaLine} />
+
             <div className={styles.schemaNode}>
               <span className="material-symbols-rounded">folder_managed</span>
               project
             </div>
+
             <div className={styles.schemaBranches}>
               <div className={styles.schemaNodeSmall}>campaign</div>
               <div className={styles.schemaNodeSmall}>task</div>
@@ -396,26 +474,51 @@ export default function HomePage() {
         <div className={styles.finalCtaInner} data-reveal>
           <div>
             <span className={styles.sectionEyebrow}>AdFlow CRM</span>
-            <h2>Готово до розробки повноцінної CRM-панелі</h2>
+
+            <h2>CRM-панель готова до роботи</h2>
+
             <p>
-              Наступний крок — сторінки входу, реєстрації, dashboard та
-              підключення PostgreSQL.
+              Авторизація, ролі, dashboard, PostgreSQL API, рахунки, оплати,
+              задачі, кампанії та статистика вже зібрані в єдину систему.
             </p>
           </div>
 
           <div className={styles.finalActions}>
-            <Link href="/login" className={styles.primaryButton} data-magnetic>
-              <span>Увійти</span>
-              <span className="material-symbols-rounded">login</span>
-            </Link>
+            {isAuthenticated ? (
+              <Link
+                href="/dashboard"
+                className={styles.primaryButton}
+                data-magnetic
+              >
+                <span>Перейти до кабінету</span>
+                <span className="material-symbols-rounded">login</span>
+              </Link>
+            ) : (
+              <>
+                <Link
+                  href="/login"
+                  className={styles.primaryButton}
+                  data-magnetic
+                >
+                  <span>Увійти</span>
+                  <span className="material-symbols-rounded">login</span>
+                </Link>
 
-            <Link href="/register" className={styles.secondaryButton} data-magnetic>
-              <span className="material-symbols-rounded">person_add</span>
-              <span>Реєстрація</span>
-            </Link>
+                <Link
+                  href="/register"
+                  className={styles.secondaryButton}
+                  data-magnetic
+                >
+                  <span className="material-symbols-rounded">person_add</span>
+                  <span>Реєстрація</span>
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </section>
+
+      <CookieBanner />
     </main>
   );
 }

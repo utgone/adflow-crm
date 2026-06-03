@@ -136,8 +136,8 @@ export default function ReCaptcha({
 
   return (
     <div>
-      <Script
-        src="https://www.google.com/recaptcha/api.js?render=explicit"
+    <Script
+  src="https://www.google.com/recaptcha/api.js?render=explicit&hl=uk"
         strategy="afterInteractive"
         onLoad={() => setScriptReady(true)}
         onError={() => {

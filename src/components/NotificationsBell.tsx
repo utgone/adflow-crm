@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import styles from "./NotificationsBell.module.css";
 
+type NotificationTone = "orange" | "green" | "blue" | "red" | "violet";
+
 type NotificationItem = {
   id: number;
   type: string;
@@ -30,7 +32,7 @@ const typeMeta: Record<
   string,
   {
     icon: string;
-    tone: "orange" | "green" | "blue" | "red" | "violet";
+    tone: NotificationTone;
   }
 > = {
   client_registered: {
@@ -80,6 +82,18 @@ function getMeta(type: string) {
   );
 }
 
+function getToneClass(tone: NotificationTone) {
+  const toneClasses: Record<NotificationTone, string> = {
+    orange: styles.tone_orange,
+    green: styles.tone_green,
+    blue: styles.tone_blue,
+    red: styles.tone_red,
+    violet: styles.tone_violet,
+  };
+
+  return toneClasses[tone];
+}
+
 function formatTime(value: string) {
   const date = new Date(value);
   const now = new Date();
@@ -115,66 +129,83 @@ export default function NotificationsBell() {
   const [marking, setMarking] = useState(false);
   const [error, setError] = useState("");
 
-  const loadNotifications = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError("");
+  const loadNotifications = useCallback(() => {
+    async function run() {
+      try {
+        setLoading(true);
+        setError("");
 
-      const response = await fetch("/api/notifications?limit=12", {
-        method: "GET",
-        cache: "no-store",
-      });
+        const response = await fetch("/api/notifications?limit=12", {
+          method: "GET",
+          cache: "no-store",
+          credentials: "include",
+        });
 
-      const result = (await response.json()) as NotificationsResponse;
+        const result = (await response.json()) as NotificationsResponse;
 
-      if (!response.ok || !result.ok || !result.data) {
-        throw new Error(result.message || "Не вдалося завантажити повідомлення.");
+        if (!response.ok || !result.ok || !result.data) {
+          throw new Error(
+            result.message || "Не вдалося завантажити повідомлення."
+          );
+        }
+
+        setItems(result.data.items);
+        setUnreadCount(result.data.unreadCount);
+      } catch (err) {
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Не вдалося завантажити повідомлення."
+        );
+      } finally {
+        setLoading(false);
       }
-
-      setItems(result.data.items);
-      setUnreadCount(result.data.unreadCount);
-    } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Не вдалося завантажити повідомлення."
-      );
-    } finally {
-      setLoading(false);
     }
+
+    run();
   }, []);
 
-  const markAllAsRead = async () => {
-    try {
-      setMarking(true);
+  const markAllAsRead = useCallback(() => {
+    async function run() {
+      try {
+        setMarking(true);
+        setError("");
 
-      const response = await fetch("/api/notifications", {
-        method: "PATCH",
-      });
+        const response = await fetch("/api/notifications", {
+          method: "PATCH",
+          credentials: "include",
+        });
 
-      const result = (await response.json()) as { ok?: boolean; message?: string };
+        const result = (await response.json()) as {
+          ok?: boolean;
+          message?: string;
+        };
 
-      if (!response.ok || result.ok === false) {
-        throw new Error(result.message || "Не вдалося оновити повідомлення.");
+        if (!response.ok || result.ok === false) {
+          throw new Error(result.message || "Не вдалося оновити повідомлення.");
+        }
+
+        setItems((current) =>
+          current.map((item) => ({
+            ...item,
+            isRead: true,
+          }))
+        );
+
+        setUnreadCount(0);
+      } catch (err) {
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Не вдалося оновити повідомлення."
+        );
+      } finally {
+        setMarking(false);
       }
-
-      setItems((current) =>
-        current.map((item) => ({
-          ...item,
-          isRead: true,
-        }))
-      );
-      setUnreadCount(0);
-    } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Не вдалося оновити повідомлення."
-      );
-    } finally {
-      setMarking(false);
     }
-  };
+
+    run();
+  }, []);
 
   useEffect(() => {
     loadNotifications();
@@ -204,18 +235,22 @@ export default function NotificationsBell() {
     };
   }, []);
 
+  const handleToggle = () => {
+    const nextOpen = !open;
+
+    setOpen(nextOpen);
+
+    if (nextOpen) {
+      loadNotifications();
+    }
+  };
+
   return (
     <div className={styles.root} ref={rootRef}>
       <button
         type="button"
         className={`${styles.bellButton} ${open ? styles.bellButtonActive : ""}`}
-        onClick={() => {
-          setOpen((current) => !current);
-
-          if (!open) {
-            loadNotifications();
-          }
-        }}
+        onClick={handleToggle}
         aria-label="Відкрити повідомлення"
       >
         <span className="material-symbols-rounded">notifications</span>
@@ -267,12 +302,11 @@ export default function NotificationsBell() {
             ) : items.length > 0 ? (
               items.map((item) => {
                 const meta = getMeta(item.type);
+
                 const content = (
                   <>
                     <span
-                      className={`${styles.itemIcon} ${
-                        styles[`tone_${meta.tone}`]
-                      }`}
+                      className={`${styles.itemIcon} ${getToneClass(meta.tone)}`}
                     >
                       <span className="material-symbols-rounded">
                         {meta.icon}
@@ -320,9 +354,14 @@ export default function NotificationsBell() {
               })
             ) : (
               <div className={styles.empty}>
-                <span className="material-symbols-rounded">notifications_off</span>
+                <span className="material-symbols-rounded">
+                  notifications_off
+                </span>
                 <strong>Поки тихо</strong>
-                <p>Тут з’являтимуться важливі події: нові брифи, оплати, рахунки та зміни статусів.</p>
+                <p>
+                  Тут з’являтимуться важливі події: нові брифи, оплати, рахунки
+                  та зміни статусів.
+                </p>
               </div>
             )}
           </div>

@@ -76,7 +76,7 @@
   justify-content: space-between;
   gap: 40px;
   padding: 48px 44px;
-  background: var(--warm-panel);
+ 
   border-right: 1px solid var(--line);
 }
 
@@ -633,6 +633,7 @@
   }
 
   .brand {
+    background-color: #fff;
     padding: 26px 22px 24px;
   }
 

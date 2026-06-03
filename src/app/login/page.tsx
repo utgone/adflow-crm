@@ -162,14 +162,14 @@ export default function LoginPage() {
         <aside className={styles.brand}>
           <Link href="/" className={styles.logo}>
             <Image
-              src="/brand/logo.svg"
+              src="/brand/logo.webp"
               alt="AdFlow CRM"
-              width={40}
-              height={40}
+              width={150}
+              height={100}
               className={styles.logoMark}
               priority
             />
-            <span>AdFlow CRM</span>
+            
           </Link>
 
           <div className={styles.brandBody}>

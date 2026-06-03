@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { notifyClient, notifyRole } from "@/lib/notifications";
 import { createHmac, randomUUID } from "crypto";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
@@ -12,6 +13,14 @@ type RegisterBody = {
   email?: unknown;
   password?: unknown;
   remember?: unknown;
+  captchaToken?: unknown;
+};
+
+type RecaptchaVerifyResponse = {
+  success: boolean;
+  challenge_ts?: string;
+  hostname?: string;
+  "error-codes"?: string[];
 };
 
 type SessionPayload = {
@@ -33,6 +42,8 @@ const SESSION_SECRET =
   process.env.NEXTAUTH_SECRET ||
   "adflow-dev-secret-change-before-production";
 
+const RECAPTCHA_SECRET_KEY = process.env.RECAPTCHA_SECRET_KEY || "";
+
 const MIN_PASSWORD_LENGTH = 8;
 const MAX_PASSWORD_LENGTH = 72;
 const MIN_NAME_LENGTH = 2;
@@ -41,14 +52,24 @@ const MAX_COMPANY_LENGTH = 120;
 
 const nameRegex = /^[A-Za-zА-Яа-яЇїІіЄєҐґ'’\-\s]{2,60}$/;
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const phoneRegex = /^\+[0-9]{10,15}$/;
+const phoneRegex = /^\+380\d{9}$/;
 
 function normalizeString(value: unknown) {
   return String(value ?? "").trim();
 }
 
 function normalizePhone(value: string) {
-  return value.replace(/[^\d+]/g, "");
+  const digits = value.replace(/\D/g, "");
+
+  if (digits.startsWith("380")) {
+    return `+${digits.slice(0, 12)}`;
+  }
+
+  if (digits.startsWith("0")) {
+    return `+380${digits.slice(1, 10)}`;
+  }
+
+  return `+380${digits.slice(0, 9)}`;
 }
 
 function getCookieMaxAge(remember: boolean) {
@@ -130,6 +151,62 @@ async function parseRequestBody(request: Request) {
   }
 }
 
+function getClientIp(request: Request) {
+  const forwarded = request.headers.get("x-forwarded-for");
+  const realIp = request.headers.get("x-real-ip");
+
+  if (forwarded) {
+    return forwarded.split(",")[0]?.trim() || "";
+  }
+
+  return realIp || "";
+}
+
+async function verifyRecaptchaToken(token: string, remoteIp: string) {
+  if (!RECAPTCHA_SECRET_KEY) {
+    return "reCAPTCHA не налаштована на сервері.";
+  }
+
+  if (!token) {
+    return "Підтвердіть, що ви не робот.";
+  }
+
+  try {
+    const formData = new URLSearchParams();
+    formData.append("secret", RECAPTCHA_SECRET_KEY);
+    formData.append("response", token);
+
+    if (remoteIp) {
+      formData.append("remoteip", remoteIp);
+    }
+
+    const response = await fetch(
+      "https://www.google.com/recaptcha/api/siteverify",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: formData,
+      }
+    );
+
+    const result = (await response.json()) as RecaptchaVerifyResponse;
+
+    if (!response.ok || !result.success) {
+      console.warn("RECAPTCHA_VERIFY_FAILED", result["error-codes"]);
+
+      return "Перевірка reCAPTCHA не пройдена. Спробуйте ще раз.";
+    }
+
+    return "";
+  } catch (error) {
+    console.error("RECAPTCHA_VERIFY_ERROR", error);
+
+    return "Не вдалося перевірити reCAPTCHA. Спробуйте пізніше.";
+  }
+}
+
 function validateRegisterInput(input: {
   name: string;
   company: string;
@@ -138,7 +215,7 @@ function validateRegisterInput(input: {
   password: string;
 }) {
   if (!input.name) {
-    return "Введіть повне ім'я.";
+    return "Введіть повне ім’я.";
   }
 
   if (
@@ -146,7 +223,7 @@ function validateRegisterInput(input: {
     input.name.length > MAX_NAME_LENGTH ||
     !nameRegex.test(input.name)
   ) {
-    return "Ім'я має містити лише літери (2–60 символів).";
+    return "Ім’я має містити лише літери (2–60 символів).";
   }
 
   if (input.company.length > MAX_COMPANY_LENGTH) {
@@ -158,7 +235,7 @@ function validateRegisterInput(input: {
   }
 
   if (!phoneRegex.test(input.phone)) {
-    return "Введіть телефон у форматі +380XXXXXXXXX.";
+    return "Введіть український номер у форматі +380XXXXXXXXX.";
   }
 
   if (!input.email) {
@@ -199,6 +276,7 @@ export async function POST(request: Request) {
   const email = normalizeString(body.email).toLowerCase();
   const phone = normalizePhone(normalizeString(body.phone));
   const password = String(body.password ?? "");
+  const captchaToken = normalizeString(body.captchaToken);
   const remember = body.remember === undefined ? true : Boolean(body.remember);
 
   const validationError = validateRegisterInput({
@@ -213,6 +291,18 @@ export async function POST(request: Request) {
     return NextResponse.json(
       { ok: false, message: validationError },
       { status: 400 }
+    );
+  }
+
+  const captchaError = await verifyRecaptchaToken(
+    captchaToken,
+    getClientIp(request)
+  );
+
+  if (captchaError) {
+    return NextResponse.json(
+      { ok: false, message: captchaError },
+      { status: 403 }
     );
   }
 
@@ -258,7 +348,46 @@ export async function POST(request: Request) {
         status: "активний",
       },
     });
+await Promise.allSettled([
+  notifyClient({
+    clientId: created.client_id,
+    actorSource: "client",
+    actorId: created.client_id,
+    actorName: created.full_name,
+    type: "client_registered",
+    title: "Акаунт створено",
+    message: "Ваш клієнтський кабінет успішно створено.",
+    entityType: "client",
+    entityId: created.client_id,
+    entityUrl: "/dashboard",
+  }),
 
+  notifyRole({
+    role: "director",
+    actorSource: "client",
+    actorId: created.client_id,
+    actorName: created.full_name,
+    type: "new_client",
+    title: "Новий клієнт",
+    message: `Клієнт ${created.full_name} зареєструвався в системі.`,
+    entityType: "client",
+    entityId: created.client_id,
+    entityUrl: "/dashboard/clients",
+  }),
+
+  notifyRole({
+    role: "manager",
+    actorSource: "client",
+    actorId: created.client_id,
+    actorName: created.full_name,
+    type: "new_client",
+    title: "Новий клієнт",
+    message: `Клієнт ${created.full_name} зареєструвався в системі.`,
+    entityType: "client",
+    entityId: created.client_id,
+    entityUrl: "/dashboard/clients",
+  }),
+]);
     const payload = createSessionPayload({
       userId: created.client_id,
       name: created.full_name,

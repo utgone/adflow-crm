@@ -181,3 +181,25 @@ model task_assignment_log {
   service         service  @relation(fields: [service_id], references: [service_id], map: "fk_assignment_service")
   task            task     @relation(fields: [task_id], references: [task_id], onDelete: Cascade, map: "fk_assignment_task")
 }
+
+model notification {
+  notification_id  Int      @id @default(autoincrement())
+  recipient_source String   @db.VarChar(20)
+  recipient_id     Int?
+  recipient_role   String?  @db.VarChar(50)
+  actor_source     String?  @db.VarChar(20)
+  actor_id         Int?
+  actor_name       String?  @db.VarChar(120)
+  type             String   @db.VarChar(60)
+  title            String   @db.VarChar(160)
+  message          String
+  entity_type      String?  @db.VarChar(60)
+  entity_id        Int?
+  entity_url       String?
+  is_read          Boolean  @default(false)
+  created_at       DateTime @default(now()) @db.Timestamp(6)
+
+  @@index([created_at(sort: Desc)], map: "idx_notification_created_at")
+  @@index([is_read], map: "idx_notification_is_read")
+  @@index([recipient_source, recipient_id, recipient_role], map: "idx_notification_recipient")
+}

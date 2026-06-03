@@ -1,5 +1,5 @@
 "use client";
-
+import NotificationsBell from "@/components/NotificationsBell";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -410,7 +410,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
               onClick={() => setMenuOpen(false)}
             >
               <Image
-                src="/brand/logo.svg"
+                src="/brand/logo-icon.webp"
                 alt="AdFlow CRM"
                 width={36}
                 height={36}
@@ -526,13 +526,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                 <strong>{roleLabels[role]}</strong>
               </div>
 
-              <button
-                className={styles.iconButton}
-                aria-label="Сповіщення"
-                type="button"
-              >
-                <span className="material-symbols-rounded">notifications</span>
-              </button>
+            <NotificationsBell />
 
               <div className={styles.user}>
                 <span className={styles.avatar}>{getInitials(user.name)}</span>

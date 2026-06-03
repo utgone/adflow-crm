@@ -61,20 +61,41 @@ function sign(value: string) {
 }
 
 function safeEqual(leftValue: string, rightValue: string) {
-  const left = Buffer.from(leftValue);
-  const right = Buffer.from(rightValue);
+  try {
+    const left = Buffer.from(leftValue);
+    const right = Buffer.from(rightValue);
 
-  if (left.length !== right.length) {
+    if (left.length !== right.length) {
+      return false;
+    }
+
+    return timingSafeEqual(left, right);
+  } catch {
     return false;
   }
+}
 
-  return timingSafeEqual(left, right);
+function isValidAuthRole(value: unknown): value is AuthRole {
+  return typeof value === "string" && validRoles.includes(value as AuthRole);
+}
+
+function isValidAuthSource(value: unknown): value is AuthSource {
+  return typeof value === "string" && validSources.includes(value as AuthSource);
+}
+
+function isValidUserId(value: unknown): value is number {
+  return (
+    typeof value === "number" &&
+    Number.isFinite(value) &&
+    Number.isInteger(value) &&
+    value > 0
+  );
 }
 
 function parseSessionToken(token: string): SessionPayload | null {
-  const [encodedPayload, signature] = token.split(".");
+  const [encodedPayload, signature, extraPart] = token.split(".");
 
-  if (!encodedPayload || !signature) {
+  if (!encodedPayload || !signature || extraPart) {
     return null;
   }
 
@@ -90,9 +111,9 @@ function parseSessionToken(token: string): SessionPayload | null {
 
     if (
       typeof payload.sessionId !== "string" ||
-      typeof payload.userId !== "number" ||
-      typeof payload.source !== "string" ||
-      typeof payload.role !== "string" ||
+      !isValidUserId(payload.userId) ||
+      !isValidAuthSource(payload.source) ||
+      !isValidAuthRole(payload.role) ||
       typeof payload.name !== "string" ||
       typeof payload.login !== "string" ||
       typeof payload.issuedAt !== "number" ||
@@ -101,23 +122,19 @@ function parseSessionToken(token: string): SessionPayload | null {
       return null;
     }
 
-    if (!validSources.includes(payload.source as AuthSource)) {
+    if (!Number.isFinite(payload.issuedAt) || !Number.isFinite(payload.expiresAt)) {
       return null;
     }
 
-    if (!validRoles.includes(payload.role as AuthRole)) {
-      return null;
-    }
-
-    if (payload.expiresAt < Date.now()) {
+    if (payload.expiresAt <= Date.now()) {
       return null;
     }
 
     return {
       sessionId: payload.sessionId,
       userId: payload.userId,
-      source: payload.source as AuthSource,
-      role: payload.role as AuthRole,
+      source: payload.source,
+      role: payload.role,
       name: payload.name,
       email: typeof payload.email === "string" ? payload.email : "",
       login: payload.login,
@@ -156,79 +173,106 @@ function mapEmployeeRole(positionName: string): AuthRole {
   return "manager";
 }
 
-export async function getCurrentUser(): Promise<CurrentUser | null> {
-  const cookieStore = await cookies();
-  const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
+async function getSessionFromCookie() {
+  try {
+    const cookieStore = await cookies();
+    const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
 
-  if (!token) {
+    if (!token) {
+      return null;
+    }
+
+    return parseSessionToken(token);
+  } catch {
     return null;
   }
+}
 
-  const session = parseSessionToken(token);
+export async function getCurrentUser(): Promise<CurrentUser | null> {
+  const session = await getSessionFromCookie();
 
   if (!session) {
     return null;
   }
 
-  if (session.source === "client") {
-    const client = await prisma.client.findUnique({
-      where: {
-        client_id: session.userId,
-      },
-      select: {
-        client_id: true,
-        full_name: true,
-        company_name: true,
-        email: true,
-        phone: true,
-        status: true,
-      },
-    });
-
-    if (!client || client.status !== "активний") {
-      return null;
-    }
-
-    return {
-      id: client.client_id,
-      source: "client",
-      role: "client",
-      name: client.full_name,
-      email: client.email,
-      login: client.email,
-      status: client.status,
-      company_name: client.company_name ?? "Без компанії",
-      phone: client.phone,
-    };
-  }
-
-  const employee = await prisma.employee.findUnique({
-    where: {
-      employee_id: session.userId,
-    },
-    include: {
-      position: true,
-    },
-  });
-
-  if (!employee || employee.status !== "працює") {
+  if (!isValidUserId(session.userId)) {
     return null;
   }
 
-  const role = mapEmployeeRole(employee.position.position_name);
+  try {
+    if (session.source === "client") {
+      const client = await prisma.client.findUnique({
+        where: {
+          client_id: session.userId,
+        },
+        select: {
+          client_id: true,
+          full_name: true,
+          company_name: true,
+          email: true,
+          phone: true,
+          status: true,
+        },
+      });
 
-  return {
-    id: employee.employee_id,
-    source: "employee",
-    role,
-    name: employee.full_name,
-    email: "",
-    login: employee.login,
-    status: employee.status,
-    phone: employee.contacts,
-    position_id: employee.position_id,
-    position_name: employee.position.position_name,
-  };
+      if (!client || client.status !== "активний") {
+        return null;
+      }
+
+      return {
+        id: client.client_id,
+        source: "client",
+        role: "client",
+        name: client.full_name,
+        email: client.email,
+        login: client.email,
+        status: client.status,
+        company_name: client.company_name ?? "Без компанії",
+        phone: client.phone,
+      };
+    }
+
+    if (session.source === "employee") {
+      const employee = await prisma.employee.findUnique({
+        where: {
+          employee_id: session.userId,
+        },
+        include: {
+          position: true,
+        },
+      });
+
+      if (!employee || employee.status !== "працює") {
+        return null;
+      }
+
+      const positionName = employee.position?.position_name ?? "";
+
+      if (!positionName) {
+        return null;
+      }
+
+      const role = mapEmployeeRole(positionName);
+
+      return {
+        id: employee.employee_id,
+        source: "employee",
+        role,
+        name: employee.full_name,
+        email: "",
+        login: employee.login,
+        status: employee.status,
+        phone: employee.contacts,
+        position_id: employee.position_id,
+        position_name: positionName,
+      };
+    }
+
+    return null;
+  } catch (error) {
+    console.error("GET_CURRENT_USER_ERROR", error);
+    return null;
+  }
 }
 
 export function getRoleLabel(role: AuthRole) {
